@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="6.0.*" />
+  </ItemGroup>
+
+  <!-- TODO Change to package reference -->
+  <ItemGroup>
+    <ProjectReference Include="..\Wing.Core\Wing.Core.fsproj" />
+    <ProjectReference Include="..\Wing.Infrastructure\Wing.Infrastructure.fsproj" />
+    <ProjectReference Include="..\Wing.Web\Wing.Web.fsproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <DebugType>embedded</DebugType>
+    <OutputType>Library</OutputType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Falco" Version="4.*" />
+  </ItemGroup>
+
+  <!-- TODO Change to package reference-->
+  <ItemGroup>
+    <ProjectReference Include="..\Wing.Core\Wing.Core.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Common.fs" />
+    <Compile Include="Controller.fs" />
+  </ItemGroup>
+</Project>
