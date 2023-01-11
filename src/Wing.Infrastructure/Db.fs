@@ -43,10 +43,17 @@ module internal DbUnit =
         let param =
             [ for i in 0 .. cmd.Parameters.Count - 1 ->
                 let p = cmd.Parameters.[i] :?> DbParameter
-                String.Concat [| p.ParameterName; ": "; string p.Value |] ]
-            |> String.Concat
+                String.Concat [| "@"; p.ParameterName; " = "; string p.Value |] ]
+            |> String.concat ", "
 
-        String.Concat [| "\nExecuting command:\n"; param; "\n"; cmd.CommandText |]
+        String.Concat [|
+            "\n"
+            if not(String.IsNullOrWhiteSpace param) then
+                "Parameters:\n"
+                param
+                "\n\n"
+            "Command Text:\n"
+            cmd.CommandText |]
 
     let toLogMessage (dbUnit : DbUnit) =
         LogVerbose (toDetailString dbUnit)

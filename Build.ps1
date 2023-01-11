@@ -27,14 +27,16 @@ $projectDir = Join-Path -Path $srcDir -ChildPath 'Wing'
 #     $projectdir = Join-Path -Path $testDir -ChildPath 'Wing.Tests'
 # }
 
-if (!$SkipClean)
-{
-    RunCommand "dotnet restore $projectDir --force --force-evaluate --nologo --verbosity quiet"
-    RunCommand "dotnet clean $projectDir -c $Configuration --nologo --verbosity quiet"
-}
+if (Test-Path -Path $projectDir) {
+  RunCommand "dotnet restore $projectDir --no-cache --force --force-evaluate --nologo --verbosity quiet"
 
-switch ($Action) {
-    "Test"  { RunCommand "dotnet test `"$projectDir`"" }
-    "Pack"  { RunCommand "dotnet pack `"$projectDir`" -c $Configuration --include-symbols --include-source" }
-    Default { RunCommand "dotnet build `"$projectDir`" -c $Configuration" }
+  if (!$SkipClean) {
+    RunCommand "dotnet clean $projectDir -c $Configuration --nologo --verbosity quiet"
+  }
+
+  switch ($Action) {
+      "Test"  { RunCommand "dotnet test `"$projectDir`"" }
+      "Pack"  { RunCommand "dotnet pack `"$projectDir`" -c $Configuration --include-symbols --include-source" }
+      Default { RunCommand "dotnet build `"$projectDir`" -c $Configuration" }
+  }
 }
