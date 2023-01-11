@@ -4,10 +4,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="6.0.*" />
-  </ItemGroup>
-
   <!-- TODO Change to package reference -->
   <ItemGroup>
     <ProjectReference Include="..\Wing.Core\Wing.Core.fsproj" />

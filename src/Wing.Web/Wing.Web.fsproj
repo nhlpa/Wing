@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Falco" Version="4.*" />
+    <PackageReference Include="Validus" Version="4.*" />
   </ItemGroup>
 
   <!-- TODO Change to package reference-->
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <Compile Include="Common.fs" />
+    <Compile Include="Errors.fs" />
     <Compile Include="Controller.fs" />
   </ItemGroup>
 </Project>

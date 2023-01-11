@@ -6,36 +6,36 @@ open System.Data.Common
 open Donald
 open Wing
 
-type IDbAction =
-    abstract member Execute : unit -> Result<unit, CommandError>
-    abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, QueryError>
-    abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, QueryError>
-    abstract member Read : unit -> Result<IDataReader, QueryError>
+//
+// Donald extensions
 
-type IDbActionFactory =
-    abstract member CreateAction : sql : string * ?param : (string * SqlType) list -> IDbAction
+[<AutoOpen>]
+module SqlTypeHelpers =
+    let inline sqlType (valueFn : 'a -> SqlType) (input : 'a option) =
+        match input with
+        | Some x -> x |> valueFn
+        | None -> SqlType.Null
 
-type IDbBatch =
-    inherit IDisposable
-    inherit IDbActionFactory
-    abstract member Save : unit -> unit
-    abstract member Undo : unit -> unit
+    let inline sqlChar input = SqlType.Char (char input)
+    let inline sqlCharOrNull input = sqlType sqlChar input
 
-type IDbEffect =
-    inherit IDisposable
-    inherit IDbActionFactory
-    abstract member CreateBatch : unit -> IDbBatch
+    let inline sqlDecimal input = SqlType.Decimal (decimal input)
+    let inline sqlDecimalOrNull input = sqlType sqlDecimal input
 
-type IDbConnectionFactory =
-    abstract member CreateConnection : unit -> IDbConnection
+    let inline sqlFloat input = SqlType.Float (float input)
+    let inline sqlFloatOrNull input = sqlType sqlFloat input
 
-type IDbFixture =
-    abstract member CreateUid : unit -> Guid
-    abstract member CreateEffect : unit -> IDbEffect
+    let inline sqlInt16 input = SqlType.Int16 (int16 input)
+    let inline sqlInt16OrNull input = sqlType sqlInt16 input
 
-type SecureDbFixture<'TAccount> =
-    { Account : 'TAccount
-      Fixture : IDbFixture }
+    let inline sqlInt32 input = SqlType.Int32 (int32 input)
+    let inline sqlInt32OrNull input = sqlType sqlInt32 input
+
+    let inline sqlInt64 input = SqlType.Int64 (int64 input)
+    let inline sqlInt64OrNull input = sqlType sqlInt64 input
+
+    let inline sqlString input = SqlType.String (string input)
+    let inline sqlStringOrNull input = sqlType sqlString input
 
 module internal DbUnit =
     let toDetailString (dbUnit : DbUnit) =
@@ -43,9 +43,10 @@ module internal DbUnit =
         let param =
             [ for i in 0 .. cmd.Parameters.Count - 1 ->
                 let p = cmd.Parameters.[i] :?> DbParameter
-                p.ParameterName, p.Value |> string ]
+                String.Concat [| p.ParameterName; ": "; string p.Value |] ]
+            |> String.Concat
 
-        sprintf "\nExecuting command:\n%A\n%A\n" param cmd.CommandText
+        String.Concat [| "\nExecuting command:\n"; param; "\n"; cmd.CommandText |]
 
     let toLogMessage (dbUnit : DbUnit) =
         LogVerbose (toDetailString dbUnit)
@@ -53,44 +54,76 @@ module internal DbUnit =
 module internal DbError =
     let toLogMessage (dbError : DbError) =
         let createLogMessge heading content =
-            sprintf "\n%s:\n%s\n" heading content
+            String.Concat [|"\n"; heading; ":\n"; string content; "\n" |]
 
         match dbError with
         | DbConnectionError e ->
-            createLogMessge "Failed to connect" e.ConnectionString
-            |> fun message -> LogError { Error = e.Error; Message = message }
+            LogError {
+                Error = e.Error
+                Message = createLogMessge "Failed to connect" e.ConnectionString }
 
         | DbTransactionError e ->
-            createLogMessge "Failed to commit or rollback transaction" (string e.Step)
-            |> fun message -> LogError { Error = e.Error; Message = message }
+            LogError {
+                Error = e.Error
+                Message = createLogMessge "Failed to commit or rollback transaction" e.Step }
 
         | DbExecutionError e ->
-            createLogMessge "Failed to execute" e.Statement
-            |> fun message -> LogError { Error = e.Error; Message = message }
+            LogError {
+                Error = e.Error
+                Message = createLogMessge "Failed to execute" e.Statement }
 
         | DataReaderCastError e ->
-            createLogMessge "Failed to read and cast the following field" e.FieldName
-            |> fun message -> LogError { Error = e.Error; Message = message }
+            LogError {
+                Error = e.Error
+                Message = createLogMessge "Failed to read and cast the following field" e.FieldName }
 
         | DataReaderOutOfRangeError e ->
-            createLogMessge "Failed to read the following field" e.FieldName
-            |> fun message -> LogError { Error = e.Error; Message = message }
+            LogError {
+                Error = e.Error
+                Message = createLogMessge "Failed to read the following field" e.FieldName }
 
-    let toOperationError retn (dbError : DbError) =
-        match dbError with
-        | DbConnectionError _ ->
-            retn [ "Could not connect to the database." ]
+//
+// Interfaces
 
-        | DbTransactionError _ ->
-            retn [ "Unable to save changes." ]
+/// Factory for creating new IDbConnectionFactory instances.
+type IDbConnectionFactory =
+    abstract member CreateConnection : unit -> IDbConnection
 
-        | DbExecutionError _ ->
-            retn [ "Unable to execute operation." ]
+/// Provides ability to perform an action against a database.
+type IDbAction =
+    abstract member Execute : unit -> Result<unit, DbError>
+    abstract member Read : fn : (IDataReader -> 'a) -> Result<'a, DbError>
+    abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, DbError>
+    abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, DbError>
 
-        | DataReaderCastError _
-        | DataReaderOutOfRangeError _ ->
-            retn [ "Unable to read data." ]
+/// Factory for creating new IDbAction instances.
+type IDbActionFactory =
+    abstract member CreateAction : sql : string * ?param : (string * SqlType) list -> IDbAction
 
+/// Provides ability to execute & group actions against a database together, to be
+/// saved or undone at run time.
+type IDbBatch =
+    inherit IDisposable
+    inherit IDbActionFactory
+    abstract member Save : unit -> unit
+    abstract member Undo : unit -> unit
+
+/// Provides ability to execute actions against a database, and create new
+/// IDbBatch instances.
+type IDbEffect =
+    inherit IDisposable
+    inherit IDbActionFactory
+    abstract member CreateBatch : unit -> IDbBatch
+
+/// A type to represent available interactions with a database.
+type IDbContext =
+    abstract member CreateUid : unit -> Guid
+    abstract member CreateEffect : unit -> IDbEffect
+
+//
+// Implementations
+
+/// Provides ability to perform an action against a database.
 type DbAction (cmd : IDbCommand, logger : IAppLogger) =
     let logCmd (logger : IAppLogger) (dbUnit : DbUnit) =
         logger.Write(DbUnit.toLogMessage dbUnit)
@@ -111,29 +144,27 @@ type DbAction (cmd : IDbCommand, logger : IAppLogger) =
             |> logCmd logger
             |> Db.exec
             |> logError logger
-            |> Result.mapError (DbError.toOperationError CommandOperationError)
+
+        member _.Read fn =
+            new DbUnit(cmd)
+            |> logCmd logger
+            |> Db.read fn
+            |> logError logger
 
         member _.Query map =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.query map
             |> logError logger
-            |> Result.mapError (DbError.toOperationError QueryOperationError)
 
         member _.QuerySingle map =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.querySingle map
             |> logError logger
-            |> Result.mapError (DbError.toOperationError QueryOperationError)
 
-        member _.Read () =
-            new DbUnit(cmd)
-            |> logCmd logger
-            |> Db.read
-            |> logError logger
-            |> Result.mapError (DbError.toOperationError QueryOperationError)
-
+/// Provides ability to execute & group actions against a database together, to be
+/// saved or undone at run time.
 type DbBatch (transaction : IDbTransaction, logger : IAppLogger) =
     interface IDbBatch with
         member _.CreateAction (sql, param) =
@@ -156,6 +187,8 @@ type DbBatch (transaction : IDbTransaction, logger : IAppLogger) =
         member _.Dispose () =
             transaction.Dispose ()
 
+/// Provides ability to execute actions against a database, and create new
+/// IDbBatch instances.
 type DbEffect (connection : IDbConnection, logger : IAppLogger) =
     interface IDbEffect with
         member _.CreateAction (sql, param) =
@@ -175,56 +208,12 @@ type DbEffect (connection : IDbConnection, logger : IAppLogger) =
         member _.Dispose () =
             connection.Dispose ()
 
-type DbFixture (connectionFactory : IDbConnectionFactory, logFactory : IAppLoggerFactory) =
-    interface IDbFixture with
+/// A type to represent available interactions with a database.
+type DbContext (connectionFactory : IDbConnectionFactory, logFactory : IAppLoggerFactory) =
+    interface IDbContext with
         member _.CreateUid () = Guid.NewGuid()
 
         member _.CreateEffect () =
             let logger = logFactory.CreateLogger()
             let connection = connectionFactory.CreateConnection()
             new DbEffect(connection, logger)
-
-module DbBatchResult =
-    let saveOrUndo (batch : IDbBatch) (result : Result<'a, 'b>) =
-        match result with
-        | Ok x ->
-            batch.Save ()
-            Ok x
-
-        | Error x ->
-            batch.Undo ()
-            Error x
-
-[<AutoOpen>]
-module SqlTypeHelpers =
-    let apply (valueFn : 'a -> SqlType) (input : 'a option) =
-        match input with
-        | Some x -> x |> valueFn
-        | None -> SqlType.Null
-
-    let inline sqlBoolean input = SqlType.Boolean (bool input)
-    let inline sqlBooleanOrNull input = apply sqlBoolean input
-
-    let inline sqlDateTime input = SqlType.DateTime (datetime input)
-    let inline sqlDateTimeOrNull input = apply sqlDateTime input
-
-    let inline sqlInt16 input = SqlType.Int16 (int16 input)
-    let inline sqlInt16OrNull input = apply sqlInt16 input
-
-    let inline sqlInt32 input = SqlType.Int32 (int32 input)
-    let inline sqlInt32OrNull input = apply sqlInt32 input
-
-    let inline sqlInt64 input = SqlType.Int64 (int64 input)
-    let inline sqlInt64OrNull input = apply sqlInt64 input
-
-    let inline sqlDecimal input = SqlType.Decimal (decimal input)
-    let inline sqlDecimalOrNull input = apply sqlDecimal input
-
-    let inline sqlChar input = SqlType.Char input
-    let inline sqlCharOrNull input = apply sqlChar input
-
-    let inline sqlString input = SqlType.String (string input)
-    let inline sqlStringOrNull input = apply sqlString input
-
-    let inline sqlGuid (input : ^a when ^a : (member ToGuid : unit -> Guid)) = SqlType.Guid (guid input)
-    let inline sqlGuidOrNull (input : ^a option when ^a : (member ToGuid : unit -> Guid)) = apply sqlGuid input

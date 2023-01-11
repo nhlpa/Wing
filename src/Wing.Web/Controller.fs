@@ -8,10 +8,10 @@ open Wing
 [<AbstractClass; Sealed>]
 type Controller =
     static member index (
-        service : Query<unit, 'T, QueryError>,
+        service : Query<unit, 'T>,
         response : 'T -> HttpHandler,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         match service () with
         | Ok x ->
@@ -22,10 +22,10 @@ type Controller =
             | Some handler -> handler e
             | None -> TextErrorResponses.http400 e
 
-        | Error (QueryOperationError e) ->
+        | Error QueryOperationError ->
             match operationErrorResponse with
-            | Some handler -> handler e
-            | None -> TextErrorResponses.http500 e
+            | Some handler -> handler
+            | None -> TextErrorResponses.http500 []
 
         | Error NoResult ->
             match notFound with
@@ -34,10 +34,10 @@ type Controller =
 
     static member detail (
         input : 'TInput option,
-        service : Query<'TInput, 'T, QueryError>,
+        service : Query<'TInput, 'T>,
         response : 'T -> HttpHandler,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         let result =
             match input with
@@ -53,10 +53,10 @@ type Controller =
             | Some handler -> handler e
             | None -> TextErrorResponses.http400 e
 
-        | Error (QueryOperationError e) ->
+        | Error QueryOperationError ->
             match operationErrorResponse with
-            | Some handler -> handler e
-            | None -> TextErrorResponses.http500 e
+            | Some handler -> handler
+            | None -> TextErrorResponses.http500 []
 
         | Error NoResult ->
             match notFound with
@@ -65,10 +65,10 @@ type Controller =
 
     static member page (
         input : Pager<'TFilter>,
-        service : Query<Pager<'TFilter>, 'T, QueryError>,
+        service : Query<Pager<'TFilter>, 'T>,
         response : 'T -> HttpHandler,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         match service input with
         | Ok x ->
@@ -79,10 +79,10 @@ type Controller =
             | Some handler -> handler e
             | None -> TextErrorResponses.http400 e
 
-        | Error (QueryOperationError e) ->
+        | Error QueryOperationError ->
             match operationErrorResponse with
-            | Some handler -> handler e
-            | None -> TextErrorResponses.http500 e
+            | Some handler -> handler
+            | None -> TextErrorResponses.http500 []
 
         | Error NoResult ->
             match notFound with
@@ -113,7 +113,7 @@ type Controller =
     // static member editOrCreate service viewService view  : HttpHandler =
     //     match service () with
     //     | Error (QueryInputError e)
-    //     | Error (QueryOperationError e) ->
+    //     | Error QueryOperationError ->
     //         view None e
 
     //     | Error NotFound ->
@@ -135,7 +135,7 @@ type Controller =
 
     // static member saveOrReview service viewService view successUrl : HttpHandler =
     //     match service () with
-    //     | Error (CommandOperationError e) ->
+    //     | Error CommandOperationError ->
     //         view None e
 
     //     | Error (CommandInputError inputErrors) ->
@@ -163,10 +163,10 @@ type Controller =
 [<AbstractClass; Sealed>]
 type HtmlController =
     static member index (
-        service : Query<unit, 'T list, QueryError>,
+        service : Query<unit, 'T list>,
         view : ControllerView<'T list>,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         let viewResponse result =
             let html = view result []
@@ -180,15 +180,15 @@ type HtmlController =
             service = service,
             response = viewResponse,
             inputErrorResponse = Option.defaultValue errorResponse inputErrorResponse,
-            operationErrorResponse = Option.defaultValue HtmlErrorResponses.http500 operationErrorResponse,
+            operationErrorResponse = Option.defaultValue (HtmlErrorResponses.http500 []) operationErrorResponse,
             notFound = Option.defaultValue HtmlErrorResponses.http404 notFound)
 
     static member detail (
         input : 'TInput option,
-        service : Query<'TInput, 'T, QueryError>,
+        service : Query<'TInput, 'T>,
         view : ControllerView<'T>,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         let viewResponse result =
             let html = view result []
@@ -199,22 +199,22 @@ type HtmlController =
             service = service,
             response = viewResponse,
             inputErrorResponse = Option.defaultValue HtmlErrorResponses.http400 inputErrorResponse,
-            operationErrorResponse = Option.defaultValue HtmlErrorResponses.http500 operationErrorResponse,
+            operationErrorResponse = Option.defaultValue (HtmlErrorResponses.http500 []) operationErrorResponse,
             notFound = Option.defaultValue HtmlErrorResponses.http404 notFound)
 
     static member page (
         input : Pager<'TFilter>,
-        service : Query<Pager<'TFilter>, Page<'TFilter, 'T>, QueryError>,
+        service : Query<Pager<'TFilter>, Page<'TFilter, 'T>>,
         view : ControllerView<Page<'TFilter, 'T>>,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         let viewResponse result =
             let html = view result []
             Response.ofHtml html
 
         let errorResponse e =
-            let html = view (Page<'TFilter, 'T>.Empty input) e
+            let html = view { Pager = input; FetchedItems = [] } e
             Response.ofHtml html
 
         Controller.page (
@@ -222,7 +222,7 @@ type HtmlController =
             service = service,
             response = viewResponse,
             inputErrorResponse = Option.defaultValue errorResponse inputErrorResponse,
-            operationErrorResponse = Option.defaultValue HtmlErrorResponses.http500 operationErrorResponse,
+            operationErrorResponse = Option.defaultValue (HtmlErrorResponses.http500 []) operationErrorResponse,
             notFound = Option.defaultValue HtmlErrorResponses.http404 notFound)
 
 and ControllerView<'T> = 'T -> string list -> XmlNode
@@ -231,10 +231,10 @@ and ControllerView<'T> = 'T -> string list -> XmlNode
 type JsonController =
     static member detail (
         input : 'TInput option,
-        service : Query<'TInput, 'T, QueryError>,
+        service : Query<'TInput, 'T>,
         ?jsonOptions : JsonSerializerOptions,
         ?inputErrorResponse : string list -> HttpHandler,
-        ?operationErrorResponse : string list -> HttpHandler,
+        ?operationErrorResponse : HttpHandler,
         ?notFound : HttpHandler) : HttpHandler =
         let response =
             match jsonOptions with
@@ -246,7 +246,7 @@ type JsonController =
             service = service,
             response = response,
             inputErrorResponse = Option.defaultValue JsonErrorResponses.http400 inputErrorResponse,
-            operationErrorResponse = Option.defaultValue JsonErrorResponses.http500 operationErrorResponse,
+            operationErrorResponse = Option.defaultValue (JsonErrorResponses.http500 []) operationErrorResponse,
             notFound = Option.defaultValue JsonErrorResponses.http404 notFound)
 //
 // JSON

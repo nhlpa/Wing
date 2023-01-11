@@ -20,13 +20,13 @@ type EmailMessage =
       Attachments : EmailAttachment list
       Recipients : EmailAddress list }
 
-type EmailMessageFailure =
+type EmailSendError =
     { Error : exn
       Message : string }
 
 type IEmailClient =
     inherit IDisposable
-    abstract member Send : EmailMessage -> Result<unit, EmailMessageFailure>
+    abstract member Send : EmailMessage -> Result<unit, EmailSendError>
 
 type IEmailClientFactory =
     abstract member CreateClient : unit -> IEmailClient

@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Donald" Version="8.*" />
+    <PackageReference Include="Donald" Version="9.*" />
   </ItemGroup>
 
   <!-- TODO Change to package reference-->
