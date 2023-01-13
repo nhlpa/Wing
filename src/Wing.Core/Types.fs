@@ -8,19 +8,24 @@ open Validus
 type EntityId =
     | EntityId of int
 
+    override x.ToString () =
+        let (EntityId int) = x
+        string int
+
     static member op_Explicit (EntityId entityId) = entityId
 
     /// Attempt to create an EntityId from an untrusted source.
     static member tryCreate (field : string) (input : int) =
-        Check.Int.greaterThan 0 field input
+        let msg field = $"{field} must have a valid identifier"
+        Check.WithMessage.Int.greaterThan 0 msg field input
         |> Result.map EntityId
 
 type EmailAddress =
     | EmailAddress of string
 
     override x.ToString () =
-        let (EmailAddress emailAddressStr) = x
-        emailAddressStr
+        let (EmailAddress str) = x
+        str
 
     static member Empty = EmailAddress String.Empty
 
@@ -28,6 +33,7 @@ type EmailAddress =
     member x.Masked =
         let (EmailAddress str) = x
         let atIndex = str.IndexOf "@"
+        let finalDot = str.LastIndexOf "."
 
         String.Concat [|
             if str.Length = 0 then "-"
@@ -39,11 +45,13 @@ type EmailAddress =
                 str.Substring (0, 1)
                 String('*', atIndex - 2)
                 str.Substring (atIndex - 1, 1)
-            str.Substring atIndex |]
+            "@"
+            String('*', finalDot - atIndex - 2)
+            str.Substring (finalDot - 1) |]
 
     /// Attempt to create an EmailAddress from an untrusted source.
     static member tryCreate (field : string) (input : string) =
-        let msg field = $"{field} mst be a valid email address"
+        let msg field = $"{field} must be a valid email address"
         let rule email =
             let validEmail, _ = MailAddress.TryCreate email
             validEmail
@@ -54,8 +62,8 @@ type E164 =
     | E164 of string
 
     override x.ToString () =
-        let (E164 e164Str) = x
-        e164Str
+        let (E164 str) = x
+        str
 
     static member Empty = E164 String.Empty
 
@@ -64,7 +72,7 @@ type E164 =
         let (E164 str) = x
         if str.Length = 0 then "-"
         elif str.Length < 5 then str.Substring (0, 1) + String('*', str.Length - 1)
-        else str.Substring (0, 2) + str.Substring (str.Length - 3, 2)
+        else str.Substring (0, 2) + String('*', str.Length - 4) + str.Substring (str.Length - 3, 2)
 
     /// Attempt to create an E164 from an untrusted source.
     static member tryCreate (field : string) (input : string) =

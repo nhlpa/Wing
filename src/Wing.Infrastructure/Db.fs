@@ -7,6 +7,44 @@ open Donald
 open Wing
 
 //
+// Interfaces
+
+/// Factory for creating new IDbConnectionFactory instances.
+type IDbConnectionFactory =
+    abstract member CreateConnection : unit -> IDbConnection
+
+/// Provides ability to perform an action against a database.
+type IDbAction =
+    abstract member Execute : unit -> Result<unit, DbError>
+    abstract member Read : fn : (IDataReader -> 'a) -> Result<'a, DbError>
+    abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, DbError>
+    abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, DbError>
+
+/// Factory for creating new IDbAction instances.
+type IDbActionFactory =
+    abstract member CreateAction : sql : string * ?param : (string * SqlType) list -> IDbAction
+
+/// Provides ability to execute & group actions against a database together, to be
+/// saved or undone at run time.
+type IDbBatch =
+    inherit IDisposable
+    inherit IDbActionFactory
+    abstract member Save : unit -> unit
+    abstract member Undo : unit -> unit
+
+/// Provides ability to execute actions against a database, and create new
+/// IDbBatch instances.
+type IDbEffect =
+    inherit IDisposable
+    inherit IDbActionFactory
+    abstract member CreateBatch : unit -> IDbBatch
+
+/// A type to represent available interactions with a database.
+type IDbContext =
+    abstract member CreateUid : unit -> Guid
+    abstract member CreateEffect : unit -> IDbEffect
+
+//
 // Donald extensions
 
 [<AutoOpen>]
@@ -90,44 +128,6 @@ module internal DbError =
                 Message = createLogMessge "Failed to read the following field" e.FieldName }
 
 //
-// Interfaces
-
-/// Factory for creating new IDbConnectionFactory instances.
-type IDbConnectionFactory =
-    abstract member CreateConnection : unit -> IDbConnection
-
-/// Provides ability to perform an action against a database.
-type IDbAction =
-    abstract member Execute : unit -> Result<unit, DbError>
-    abstract member Read : fn : (IDataReader -> 'a) -> Result<'a, DbError>
-    abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, DbError>
-    abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, DbError>
-
-/// Factory for creating new IDbAction instances.
-type IDbActionFactory =
-    abstract member CreateAction : sql : string * ?param : (string * SqlType) list -> IDbAction
-
-/// Provides ability to execute & group actions against a database together, to be
-/// saved or undone at run time.
-type IDbBatch =
-    inherit IDisposable
-    inherit IDbActionFactory
-    abstract member Save : unit -> unit
-    abstract member Undo : unit -> unit
-
-/// Provides ability to execute actions against a database, and create new
-/// IDbBatch instances.
-type IDbEffect =
-    inherit IDisposable
-    inherit IDbActionFactory
-    abstract member CreateBatch : unit -> IDbBatch
-
-/// A type to represent available interactions with a database.
-type IDbContext =
-    abstract member CreateUid : unit -> Guid
-    abstract member CreateEffect : unit -> IDbEffect
-
-//
 // Implementations
 
 /// Provides ability to perform an action against a database.
@@ -137,13 +137,10 @@ type DbAction (cmd : IDbCommand, logger : IAppLogger) =
         dbUnit
 
     let logError (logger : IAppLogger) (result : Result<'a, DbError>) : Result<'a, DbError> =
-        match result with
-        | Ok x ->
-            Ok x
-
-        | Error dbError ->
+        result
+        |> Result.mapError (fun dbError ->
             logger.Write(DbError.toLogMessage dbError)
-            Error dbError
+            dbError)
 
     interface IDbAction with
         member _.Execute () =

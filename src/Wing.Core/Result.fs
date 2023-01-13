@@ -1,14 +1,14 @@
 ﻿namespace Wing
 
 [<RequireQualifiedAccess>]
-module ResultOption =
-    let bind (fn : 'T -> Result<'TOut option, 'TError>) (x : Result<'T option, 'TError>) =
+module Result =
+    let bindOption (fn : 'T -> Result<'TOut option, 'TError>) (x : Result<'T option, 'TError>) =
         match x with
         | Ok (Some inner) -> fn inner
         | Ok None -> Ok None
         | Error e -> Error e
 
-    let map (fn : 'T -> 'TOut) (x : Result<'T option, 'TError>) =
+    let mapOption (fn : 'T -> 'TOut) (x : Result<'T option, 'TError>) =
         match x with
         | Ok (Some inner) -> Ok (Some (fn inner))
         | Ok None -> Ok None
