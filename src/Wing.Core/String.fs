@@ -8,7 +8,7 @@ module String =
 
     let private textInfo = CultureInfo.InvariantCulture.TextInfo
 
-    let equals (s1 : string, s2 : string) =
+    let equals (s1 : string) (s2 : string) =
         s1.Equals(s2, StringComparison.OrdinalIgnoreCase)
 
     let isEmpty (x : string) =
