@@ -67,6 +67,10 @@ type E164 =
 
     static member Empty = E164 String.Empty
 
+    /// The en-us requirements message for E164
+    static member requirements (field : string) =
+        $"{field} must be a valid international phone number, starting with a + followed by the country code then number"
+
     /// Mask the E164 number for public presentation.
     member x.Masked =
         let (E164 str) = x
@@ -76,9 +80,8 @@ type E164 =
 
     /// Attempt to create an E164 from an untrusted source.
     static member tryCreate (field : string) (input : string) =
-        let msg field = $"{field} must be a valid international phone number, starting with a + followed by the country code then number"
         let rule phone = Regex.IsMatch(phone, @"^\+[1-9]\d{3,14}$")
-        Validator.create msg rule field input
+        Validator.create E164.requirements rule field input
         |> Result.map E164
 
 type PersonalName =
