@@ -3,6 +3,7 @@ namespace Wing.Db
 open System
 open System.Data
 open System.Data.Common
+open System.Threading.Tasks
 open Donald
 open Wing
 
@@ -19,6 +20,7 @@ type IDbAction =
     abstract member Read : fn : (IDataReader -> 'a) -> Result<'a, DbError>
     abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, DbError>
     abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, DbError>
+    abstract member QuerySingleAsync : map : (IDataReader -> 'a) -> Task<Result<'a option, DbError>>
 
 /// Factory for creating new IDbAction instances.
 type IDbActionFactory =
@@ -136,36 +138,46 @@ type DbAction (cmd : IDbCommand, logger : IAppLogger) =
         logger.Write(DbUnit.toLogMessage dbUnit)
         dbUnit
 
-    let logError (logger : IAppLogger) (result : Result<'a, DbError>) : Result<'a, DbError> =
-        result
-        |> Result.mapError (fun dbError ->
-            logger.Write(DbError.toLogMessage dbError)
-            dbError)
-
     interface IDbAction with
         member _.Execute () =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.exec
-            |> logError logger
+            |> Result.mapError (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
 
         member _.Read fn =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.read fn
-            |> logError logger
+            |> Result.mapError (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
 
         member _.Query map =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.query map
-            |> logError logger
+            |> Result.mapError (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
 
         member _.QuerySingle map =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.querySingle map
-            |> logError logger
+            |> Result.mapError (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
+
+        member _.QuerySingleAsync map =
+            new DbUnit(cmd)
+            |> logCmd logger
+            |> Db.Async.querySingle map
+            |> Result.mapErrorTask (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
 
 /// Provides ability to execute & group actions against a database together, to be
 /// saved or undone at run time.

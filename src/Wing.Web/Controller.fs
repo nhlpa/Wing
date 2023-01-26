@@ -27,7 +27,7 @@ type Controller =
             | Some handler -> handler
             | None -> TextErrorResponses.http500 []
 
-        | Error NoResult ->
+        | Error QueryNoResult ->
             match notFound with
             | Some handler -> handler
             | None -> TextErrorResponses.http404
@@ -42,7 +42,7 @@ type Controller =
         let result =
             match input with
             | Some x -> service x
-            | None -> Error NoResult
+            | None -> Error QueryNoResult
 
         match result with
         | Ok x ->
@@ -58,7 +58,7 @@ type Controller =
             | Some handler -> handler
             | None -> TextErrorResponses.http500 []
 
-        | Error NoResult ->
+        | Error QueryNoResult ->
             match notFound with
             | Some handler -> handler
             | None -> TextErrorResponses.http404
@@ -84,7 +84,7 @@ type Controller =
             | Some handler -> handler
             | None -> TextErrorResponses.http500 []
 
-        | Error NoResult ->
+        | Error QueryNoResult ->
             match notFound with
             | Some handler -> handler
             | None -> TextErrorResponses.http404
