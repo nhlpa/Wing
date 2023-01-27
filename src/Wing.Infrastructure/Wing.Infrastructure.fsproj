@@ -19,5 +19,7 @@
 
   <ItemGroup>
     <Compile Include="Db.fs" />
+    <Compile Include="Email.fs" />
+    <Compile Include="Sms.fs" />
   </ItemGroup>
 </Project>

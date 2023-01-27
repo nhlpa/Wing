@@ -37,12 +37,13 @@ module Result =
 
     //
     // Task
-
-    let returnTask (x : Result<'T, 'TError>)
+[<RequireQualifiedAccess>]
+module TaskResult =
+    let ofResult (x : Result<'T, 'TError>)
         : Task<Result<'T, 'TError>> =
         Task.FromResult x
 
-    let bindTask (fn : 'T -> Task<Result<'TOut, 'TError>>) (x : Task<Result<'T, 'TError>>)
+    let bind (fn : 'T -> Task<Result<'TOut, 'TError>>) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
         task {
             match! x with
@@ -50,16 +51,20 @@ module Result =
             | Error e -> return Error e
         }
 
-    let bindTaskResult (fn : 'T -> Task<Result<'TOut, 'TError>>) (x : Result<'T, 'TError>)
-        : Task<Result<'TOut, 'TError>> =
-        returnTask x
-        |> bindTask fn
+    let bindOption (fn : 'T -> Task<Result<'TOut option, 'TError>>) (x : Task<Result<'T option, 'TError>>)
+        : Task<Result<'TOut option, 'TError>> =
+            task {
+                match! x with
+                | Ok (Some inner) -> return! fn inner
+                | Ok None -> return Ok None
+                | Error e -> return Error e
+            }
 
-    let mapTask (fn : 'T -> 'TOut) (x : Task<Result<'T, 'TError>>)
+    let map (fn : 'T -> 'TOut) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
-        bindTask (fn >> Ok >> returnTask) x
+        bind (fn >> Ok >> ofResult) x
 
-    let mapErrorTask (fn : 'TError -> 'TErrorOut) (x : Task<Result<'T, 'TError>>)
+    let mapError (fn : 'TError -> 'TErrorOut) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'T, 'TErrorOut>> =
         task {
             match! x with
@@ -67,11 +72,11 @@ module Result =
             | Error e -> return Error (fn e)
         }
 
-    let defaultValueTask (value : 'T) (x : Task<Result<'T option, 'TError>>)
+    let defaultValue (value : 'T) (x : Task<Result<'T option, 'TError>>)
         : Task<Result<'T, 'TError>> =
-        mapTask (Option.defaultValue value) x
+        map (Option.defaultValue value) x
 
-    let defaultValueErrorTask (value : 'TError) (x : Task<Result<'T option, 'TError>>)
+    let defaultValueError (value : 'TError) (x : Task<Result<'T option, 'TError>>)
         : Task<Result<'T, 'TError>> =
         task {
             match! x with

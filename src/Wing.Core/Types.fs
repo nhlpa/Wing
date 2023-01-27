@@ -23,12 +23,6 @@ type EntityId =
 type EmailAddress =
     | EmailAddress of string
 
-    override x.ToString () =
-        let (EmailAddress str) = x
-        str
-
-    static member Empty = EmailAddress String.Empty
-
     /// Mask the email address for public presentation.
     member x.Masked =
         let (EmailAddress str) = x
@@ -49,6 +43,12 @@ type EmailAddress =
             String('*', finalDot - atIndex - 2)
             str.Substring (finalDot - 1) |]
 
+    override x.ToString () =
+        let (EmailAddress str) = x
+        str
+
+    static member Empty = EmailAddress String.Empty
+
     /// Attempt to create an EmailAddress from an untrusted source.
     static member tryCreate (field : string) (input : string) =
         let msg field = $"{field} must be a valid email address"
@@ -61,6 +61,13 @@ type EmailAddress =
 type E164 =
     | E164 of string
 
+    /// Mask the E164 number for public presentation.
+    member x.Masked =
+        let (E164 str) = x
+        if str.Length = 0 then "-"
+        elif str.Length < 5 then str.Substring (0, 1) + String('*', str.Length - 1)
+        else str.Substring (0, 2) + String('*', str.Length - 4) + str.Substring (str.Length - 3, 2)
+
     override x.ToString () =
         let (E164 str) = x
         str
@@ -70,13 +77,6 @@ type E164 =
     /// The en-us requirements message for E164
     static member requirements (field : string) =
         $"{field} must be a valid international phone number, starting with a + followed by the country code then number"
-
-    /// Mask the E164 number for public presentation.
-    member x.Masked =
-        let (E164 str) = x
-        if str.Length = 0 then "-"
-        elif str.Length < 5 then str.Substring (0, 1) + String('*', str.Length - 1)
-        else str.Substring (0, 2) + String('*', str.Length - 4) + str.Substring (str.Length - 3, 2)
 
     /// Attempt to create an E164 from an untrusted source.
     static member tryCreate (field : string) (input : string) =
@@ -88,14 +88,14 @@ type PersonalName =
     { FirstName : string
       LastName : string }
 
+    member x.FullName = String.concat " " [| x.FirstName; x.LastName |]
+    member x.LegalName = String.concat ", " [| x.LastName; x.FirstName |]
+
     override x.ToString () = x.FullName
 
     static member Empty =
         { FirstName = String.Empty
           LastName = String.Empty }
-
-    member x.FullName = String.concat " " [| x.FirstName; x.LastName |]
-    member x.LegalName = String.concat ", " [| x.LastName; x.FirstName |]
 
     static member tryCreate (field : string) (input : PersonalName) =
         validate {
@@ -114,6 +114,9 @@ type Pager<'TFilter> =
       PageNumber : int
       PageSize   : int}
 
+    member x.Offset = x.PageSize * (x.PageNumber - 1)
+    member x.FetchSize = x.PageSize + 1
+
     static member DefaultPageNumber : int = 1
     static member DefaultPageSize : int = 10
     static member Empty =
@@ -121,20 +124,17 @@ type Pager<'TFilter> =
           PageNumber = Pager<'TFilter>.DefaultPageNumber
           PageSize = Pager<'TFilter>.DefaultPageSize }
 
-    member x.Offset = x.PageSize * (x.PageNumber - 1)
-    member x.FetchSize = x.PageSize + 1
-
 /// Bi-directionally aware page of items. Includes the optionally applied
 /// filter.
 type Page<'TFilter, 'TItem> =
     { Pager : Pager<'TFilter>
       FetchedItems: 'TItem list }
 
-    static member Empty =
-        { Pager = Pager<'TFilter>.Empty
-          FetchedItems = [] }
-
     member x.HasMore = x.FetchedItems.Length > x.Pager.PageSize
     member x.NextPage = if x.HasMore then Some (x.Pager.PageNumber + 1) else None
     member x.PreviousPage = if x.Pager.PageNumber <= 1 then None else Some (x.Pager.PageNumber - 1)
     member x.PageItems = if x.HasMore then List.truncate x.Pager.PageSize x.FetchedItems else x.FetchedItems
+
+    static member Empty =
+        { Pager = Pager<'TFilter>.Empty
+          FetchedItems = [] }

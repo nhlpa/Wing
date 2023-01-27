@@ -1,12 +1,19 @@
-namespace Wing.Email
+namespace Wing.Infrastructure
 
 open System
 open System.IO
 open System.Net.Mail
+open System.Threading.Tasks
+open Wing
 
-type EmailAddress =
-    { Email : string
+type EmailRecipient =
+    { Email : EmailAddress
       Name : string }
+
+type EmailRecipientType =
+    | EmailTo of EmailRecipient
+    | EmailCc of EmailRecipient
+    | EmailBcc of EmailRecipient
 
 type EmailAttachment =
     { ContentId : string
@@ -14,59 +21,51 @@ type EmailAttachment =
       Blob : byte[] }
 
 type EmailMessage =
-    { From : EmailAddress
+    { Recipients : EmailRecipientType list
       Subject : string
       Body : string
-      Attachments : EmailAttachment list
-      Recipients : EmailAddress list }
-
-type EmailSendError =
-    { Error : exn
-      Message : string }
+      Attachments : EmailAttachment list }
 
 type IEmailClient =
     inherit IDisposable
-    abstract member Send : EmailMessage -> Result<unit, EmailSendError>
+    abstract member Dispatch : EmailMessage -> Task<Result<unit, string>>
 
-type IEmailClientFactory =
-    abstract member CreateClient : unit -> IEmailClient
+//
+// SMTP
 
-module EmailMessage =
-    let toMailMessage (email : EmailMessage) =
-        let msg = new MailMessage()
-        msg.From <- MailAddress(email.From.Email, email.From.Name)
-        msg.Subject <- email.Subject
-
-        msg.Body <- email.Body
-
-        for r in email.Recipients do
-            msg.To.Add (MailAddress(r.Email, r.Name))
-
-        for a in email.Attachments do
-            let ms = new MemoryStream(a.Blob)
-            let attachment = new Attachment(contentStream = ms, name = a.Name)
-            attachment.ContentId <- a.ContentId
-            msg.Attachments.Add(attachment)
-
-        msg
-
-type SmtpEmailClient (smtp : SmtpClient) =
+type SmtpEmailClient (
+    smtp : SmtpClient,
+    from : EmailRecipient,
+    logger : IAppLogger) =
     interface IEmailClient with
-        member _.Send (email) =
-            try
-                smtp.Send(EmailMessage.toMailMessage email)
-                Ok ()
-            with
-            | :? SmtpException as ex ->
-                Error {
-                    Error = ex
-                    Message = "Failed to send email via SMTP" }
+        member _.Dispatch (email) =
+            task {
+                try
+                    let msg = new MailMessage()
+                    msg.From <- MailAddress(string from.Email, from.Name)
+                    msg.Subject <- email.Subject
+
+                    msg.Body <- email.Body
+
+                    for recipient in email.Recipients do
+                        match recipient with
+                        | EmailTo x -> msg.To.Add (MailAddress(string x.Email, x.Name))
+                        | EmailCc x -> msg.CC.Add (MailAddress(string x.Email, x.Name))
+                        | EmailBcc x -> msg.Bcc.Add (MailAddress(string x.Email, x.Name))
+
+                    for a in email.Attachments do
+                        let ms = new MemoryStream(a.Blob)
+                        let attachment = new Attachment(contentStream = ms, name = a.Name)
+                        attachment.ContentId <- a.ContentId
+                        msg.Attachments.Add(attachment)
+
+                    do! smtp.SendMailAsync msg
+                    return Ok ()
+                with
+                | :? SmtpException as ex ->
+                    logger.Write (LogError { Error = ex; Message = ex.Message })
+                    return Error ex.Message
+            }
 
         member _.Dispose () =
             smtp.Dispose ()
-
-type SmtpEmailClientFactory (host, port) =
-    interface IEmailClientFactory with
-        member _.CreateClient () =
-            let smtp = new SmtpClient(host = host, port = port)
-            new SmtpEmailClient(smtp)

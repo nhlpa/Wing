@@ -1,4 +1,4 @@
-namespace Wing.Db
+namespace Wing.Infrastructure
 
 open System
 open System.Data
@@ -20,6 +20,7 @@ type IDbAction =
     abstract member Read : fn : (IDataReader -> 'a) -> Result<'a, DbError>
     abstract member Query : map : (IDataReader -> 'a) -> Result<'a list, DbError>
     abstract member QuerySingle : map : (IDataReader -> 'a) -> Result<'a option, DbError>
+    abstract member ExecuteAsync : unit -> Task<Result<unit, DbError>>
     abstract member QuerySingleAsync : map : (IDataReader -> 'a) -> Task<Result<'a option, DbError>>
 
 /// Factory for creating new IDbAction instances.
@@ -36,15 +37,11 @@ type IDbBatch =
 
 /// Provides ability to execute actions against a database, and create new
 /// IDbBatch instances.
-type IDbEffect =
+type IDbClient =
     inherit IDisposable
     inherit IDbActionFactory
     abstract member CreateBatch : unit -> IDbBatch
-
-/// A type to represent available interactions with a database.
-type IDbContext =
     abstract member CreateUid : unit -> Guid
-    abstract member CreateEffect : unit -> IDbEffect
 
 //
 // Donald extensions
@@ -171,11 +168,19 @@ type DbAction (cmd : IDbCommand, logger : IAppLogger) =
                 logger.Write(DbError.toLogMessage dbError)
                 dbError)
 
+        member _.ExecuteAsync () =
+            new DbUnit(cmd)
+            |> logCmd logger
+            |> Db.Async.exec
+            |> TaskResult.mapError (fun dbError ->
+                logger.Write(DbError.toLogMessage dbError)
+                dbError)
+
         member _.QuerySingleAsync map =
             new DbUnit(cmd)
             |> logCmd logger
             |> Db.Async.querySingle map
-            |> Result.mapErrorTask (fun dbError ->
+            |> TaskResult.mapError (fun dbError ->
                 logger.Write(DbError.toLogMessage dbError)
                 dbError)
 
@@ -205,8 +210,8 @@ type DbBatch (transaction : IDbTransaction, logger : IAppLogger) =
 
 /// Provides ability to execute actions against a database, and create new
 /// IDbBatch instances.
-type DbEffect (connection : IDbConnection, logger : IAppLogger) =
-    interface IDbEffect with
+type DbClient (connection : IDbConnection, logger : IAppLogger) =
+    interface IDbClient with
         member _.CreateAction (sql, param) =
             let param' = defaultArg param []
             let dbUnit =
@@ -220,16 +225,8 @@ type DbEffect (connection : IDbConnection, logger : IAppLogger) =
             let transaction = connection.TryBeginTransaction ()
             new DbBatch(transaction, logger)
 
+        member _.CreateUid () = Guid.NewGuid()
+
     interface IDisposable with
         member _.Dispose () =
             connection.Dispose ()
-
-/// A type to represent available interactions with a database.
-type DbContext (connectionFactory : IDbConnectionFactory, logFactory : IAppLoggerFactory) =
-    interface IDbContext with
-        member _.CreateUid () = Guid.NewGuid()
-
-        member _.CreateEffect () =
-            let logger = logFactory.CreateLogger()
-            let connection = connectionFactory.CreateConnection()
-            new DbEffect(connection, logger)
