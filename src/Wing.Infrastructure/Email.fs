@@ -1,34 +1,8 @@
 namespace Wing.Infrastructure
 
-open System
 open System.IO
 open System.Net.Mail
-open System.Threading.Tasks
 open Wing
-
-type EmailRecipient =
-    { Email : EmailAddress
-      Name : string }
-
-type EmailRecipientType =
-    | EmailTo of EmailRecipient
-    | EmailCc of EmailRecipient
-    | EmailBcc of EmailRecipient
-
-type EmailAttachment =
-    { ContentId : string
-      Name : string
-      Blob : byte[] }
-
-type EmailMessage =
-    { Recipients : EmailRecipientType list
-      Subject : string
-      Body : string
-      Attachments : EmailAttachment list }
-
-type IEmailClient =
-    inherit IDisposable
-    abstract member Dispatch : EmailMessage -> Task<Result<unit, string>>
 
 //
 // SMTP
@@ -60,11 +34,9 @@ type SmtpEmailClient (
                         msg.Attachments.Add(attachment)
 
                     do! smtp.SendMailAsync msg
-                    return Ok ()
+                    return ()
                 with
-                | :? SmtpException as ex ->
-                    logger.Write (LogError { Error = ex; Message = ex.Message })
-                    return Error ex.Message
+                | :? SmtpException as ex -> logger.Write (LogError { Error = ex; Message = ex.Message })
             }
 
         member _.Dispose () =

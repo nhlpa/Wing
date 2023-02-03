@@ -19,9 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Operations.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Errors.fs" />
-    <Compile Include="Controller.fs" />
+    <!-- <Compile Include="Controller.fs" /> -->
   </ItemGroup>
 </Project>

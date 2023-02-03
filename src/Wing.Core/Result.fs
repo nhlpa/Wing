@@ -4,9 +4,6 @@ open System.Threading.Tasks
 
 [<RequireQualifiedAccess>]
 module Result =
-    //
-    // Option
-
     let bindOption (fn : 'T -> Result<'TOut option, 'TError>) (x : Result<'T option, 'TError>)
         : Result<'TOut option, 'TError> =
         match x with
@@ -35,11 +32,23 @@ module Result =
         | Ok None -> Error value
         | Error e -> Error e
 
-    //
-    // Task
+[<AutoOpen>]
+module ResultBuilder =
+    [<Struct>]
+    type ResultBuilder =
+        member _.Return (x) =  Ok x
+        member _.ReturnFrom (x) = x
+        member _.Bind (x, fn) = Result.bind fn x
+        member _.Zero () = Ok ()
+        member _.Combine (x, fn) = Result.bind fn x
+        member _.Delay (x) = x
+        member _.Run (fn) = fn ()
+
+    let result = ResultBuilder()
+
 [<RequireQualifiedAccess>]
 module TaskResult =
-    let ofResult (x : Result<'T, 'TError>)
+    let retn (x : Result<'T, 'TError>)
         : Task<Result<'T, 'TError>> =
         Task.FromResult x
 
@@ -62,7 +71,14 @@ module TaskResult =
 
     let map (fn : 'T -> 'TOut) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
-        bind (fn >> Ok >> ofResult) x
+        bind (fn >> Ok >> retn) x
+
+    let mapResult (fn : Result<'T, 'TError> -> Result<'TOut, 'TError>) (x : Task<Result<'T, 'TError>>)
+        : Task<Result<'TOut, 'TError>> =
+        task {
+            let! xResult = x
+            return (fn xResult)
+        }
 
     let mapError (fn : 'TError -> 'TErrorOut) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'T, 'TErrorOut>> =
@@ -84,3 +100,19 @@ module TaskResult =
             | Ok None -> return Error value
             | Error e-> return Error e
         }
+
+[<AutoOpen>]
+module TaskResultBuilder =
+    [<Struct>]
+    type TaskResultBuilder =
+        member _.Return (x) =  TaskResult.retn (Ok x)
+        member _.Return (x) =  TaskResult.retn x
+        member _.ReturnFrom (x) = x
+        member _.Bind (x, fn) = TaskResult.bind fn x
+        member _.Bind (x, fn) = TaskResult.retn x |> TaskResult.bind fn
+        member _.Zero () = TaskResult.retn (Ok ())
+        member _.Combine (x, fn) = TaskResult.bind fn x
+        member _.Delay (x) = x
+        member _.Run (fn) = fn ()
+
+    let taskResult = TaskResultBuilder()

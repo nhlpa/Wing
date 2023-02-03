@@ -10,9 +10,3 @@ type AppLogger (logger : ILogger) =
             match logMessage with
             | LogError err -> logger.LogError (err.Error, err.Message)
             | LogVerbose msg -> logger.LogDebug (msg)
-
-/// Factory for creating AppLogger instances.
-type AppLoggerFactory (logger : ILogger) =
-    interface IAppLoggerFactory with
-        member _.CreateLogger() =
-            new AppLogger(logger)
