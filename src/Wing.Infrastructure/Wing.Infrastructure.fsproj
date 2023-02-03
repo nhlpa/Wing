@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Donald" Version="9.*" />
+    <PackageReference Include="Donald" Version="10.0.0-alpha1" />
   </ItemGroup>
 
   <!-- TODO Change to package reference-->
@@ -19,6 +19,5 @@
 
   <ItemGroup>
     <Compile Include="Db.fs" />
-    <Compile Include="Email.fs" />
   </ItemGroup>
 </Project>

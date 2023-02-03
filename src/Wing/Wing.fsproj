@@ -6,7 +6,6 @@
 
   <!-- TODO Change to package reference -->
   <ItemGroup>
-    <Compile Include="Blah.fsx" />
     <ProjectReference Include="..\Wing.Core\Wing.Core.fsproj" />
     <ProjectReference Include="..\Wing.Infrastructure\Wing.Infrastructure.fsproj" />
     <ProjectReference Include="..\Wing.Web\Wing.Web.fsproj" />

@@ -8,18 +8,14 @@ type PersonalName =
     { FirstName : string
       LastName : string }
 
-    member x.FullName = String.concat " " [| x.FirstName; x.LastName |]
-    member x.LegalName = String.concat ", " [| x.LastName; x.FirstName |]
+    member x.FullName = $"{x.FirstName} {x.LastName}"
+    member x.LegalName = $"{x.LastName}, {x.FirstName}"
 
     override x.ToString () = x.FullName
 
     static member Empty =
         { FirstName = String.Empty
           LastName = String.Empty }
-
-    static member Create first last =
-        { FirstName = first
-          LastName = last }
 
     static member TryCreate (field : string) (input : PersonalName) =
         validate {
@@ -34,9 +30,9 @@ type PersonalName =
 ///
 /// Note: Fetches +1 row to determine if more resultsexists.
 type Pager<'TFilter> =
-    { Filter     : 'TFilter option
+    { Filter : 'TFilter option
       PageNumber : int
-      PageSize   : int}
+      PageSize : int}
 
     member x.Offset = x.PageSize * (x.PageNumber - 1)
     member x.FetchSize = x.PageSize + 1

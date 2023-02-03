@@ -13,13 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="String.fs" />
-    <Compile Include="Option.fs" />
     <Compile Include="Result.fs" />
+    <Compile Include="String.fs" />
     <Compile Include="Logging.fs" />
+    <Compile Include="Operations.fs" />
     <Compile Include="ValueTypes.fs" />
     <Compile Include="AggregateTypes.fs" />
-    <Compile Include="Operations.fs" />
     <Compile Include="Infrastructure.fs" />
   </ItemGroup>
 </Project>

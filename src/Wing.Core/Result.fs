@@ -32,26 +32,22 @@ module Result =
         | Ok None -> Error value
         | Error e -> Error e
 
-[<AutoOpen>]
-module ResultBuilder =
-    [<Struct>]
-    type ResultBuilder =
-        member _.Return (x) =  Ok x
-        member _.ReturnFrom (x) = x
-        member _.Bind (x, fn) = Result.bind fn x
-        member _.Zero () = Ok ()
-        member _.Combine (x, fn) = Result.bind fn x
-        member _.Delay (x) = x
-        member _.Run (fn) = fn ()
+// [<AutoOpen>]
+// module ResultBuilder =
+//     [<Struct>]
+//     type ResultBuilder =
+//         member _.Return (x) =  Ok x
+//         member _.ReturnFrom (x) = x
+//         member _.Bind (x, fn) = Result.bind fn x
+//         member _.Zero () = Ok ()
+//         member _.Combine (x, fn) = Result.bind fn x
+//         member _.Delay (x) = x
+//         member _.Run (fn) = fn ()
 
-    let result = ResultBuilder()
+//     let result = ResultBuilder()
 
 [<RequireQualifiedAccess>]
 module TaskResult =
-    let retn (x : Result<'T, 'TError>)
-        : Task<Result<'T, 'TError>> =
-        Task.FromResult x
-
     let bind (fn : 'T -> Task<Result<'TOut, 'TError>>) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
         task {
@@ -60,18 +56,18 @@ module TaskResult =
             | Error e -> return Error e
         }
 
-    let bindOption (fn : 'T -> Task<Result<'TOut option, 'TError>>) (x : Task<Result<'T option, 'TError>>)
-        : Task<Result<'TOut option, 'TError>> =
-            task {
-                match! x with
-                | Ok (Some inner) -> return! fn inner
-                | Ok None -> return Ok None
-                | Error e -> return Error e
-            }
+//     let bindOption (fn : 'T -> Task<Result<'TOut option, 'TError>>) (x : Task<Result<'T option, 'TError>>)
+//         : Task<Result<'TOut option, 'TError>> =
+//             task {
+//                 match! x with
+//                 | Ok (Some inner) -> return! fn inner
+//                 | Ok None -> return Ok None
+//                 | Error e -> return Error e
+//             }
 
     let map (fn : 'T -> 'TOut) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
-        bind (fn >> Ok >> retn) x
+        bind (fn >> Ok >> Task.FromResult) x
 
     let mapResult (fn : Result<'T, 'TError> -> Result<'TOut, 'TError>) (x : Task<Result<'T, 'TError>>)
         : Task<Result<'TOut, 'TError>> =
@@ -80,39 +76,39 @@ module TaskResult =
             return (fn xResult)
         }
 
-    let mapError (fn : 'TError -> 'TErrorOut) (x : Task<Result<'T, 'TError>>)
-        : Task<Result<'T, 'TErrorOut>> =
-        task {
-            match! x with
-            | Ok x -> return Ok x
-            | Error e -> return Error (fn e)
-        }
+//     let mapError (fn : 'TError -> 'TErrorOut) (x : Task<Result<'T, 'TError>>)
+//         : Task<Result<'T, 'TErrorOut>> =
+//         task {
+//             match! x with
+//             | Ok x -> return Ok x
+//             | Error e -> return Error (fn e)
+//         }
 
-    let defaultValue (value : 'T) (x : Task<Result<'T option, 'TError>>)
-        : Task<Result<'T, 'TError>> =
-        map (Option.defaultValue value) x
+//     let defaultValue (value : 'T) (x : Task<Result<'T option, 'TError>>)
+//         : Task<Result<'T, 'TError>> =
+//         map (Option.defaultValue value) x
 
-    let defaultValueError (value : 'TError) (x : Task<Result<'T option, 'TError>>)
-        : Task<Result<'T, 'TError>> =
-        task {
-            match! x with
-            | Ok (Some x) -> return Ok x
-            | Ok None -> return Error value
-            | Error e-> return Error e
-        }
+//     let defaultValueError (value : 'TError) (x : Task<Result<'T option, 'TError>>)
+//         : Task<Result<'T, 'TError>> =
+//         task {
+//             match! x with
+//             | Ok (Some x) -> return Ok x
+//             | Ok None -> return Error value
+//             | Error e-> return Error e
+//         }
 
-[<AutoOpen>]
-module TaskResultBuilder =
-    [<Struct>]
-    type TaskResultBuilder =
-        member _.Return (x) =  TaskResult.retn (Ok x)
-        member _.Return (x) =  TaskResult.retn x
-        member _.ReturnFrom (x) = x
-        member _.Bind (x, fn) = TaskResult.bind fn x
-        member _.Bind (x, fn) = TaskResult.retn x |> TaskResult.bind fn
-        member _.Zero () = TaskResult.retn (Ok ())
-        member _.Combine (x, fn) = TaskResult.bind fn x
-        member _.Delay (x) = x
-        member _.Run (fn) = fn ()
+// [<AutoOpen>]
+// module TaskResultBuilder =
+//     [<Struct>]
+//     type TaskResultBuilder =
+//         member _.Return (x) =  TaskResult.retn (Ok x)
+//         member _.Return (x) =  TaskResult.retn x
+//         member _.ReturnFrom (x) = x
+//         member _.Bind (x, fn) = TaskResult.bind fn x
+//         member _.Bind (x, fn) = TaskResult.retn x |> TaskResult.bind fn
+//         member _.Zero () = TaskResult.retn (Ok ())
+//         member _.Combine (x, fn) = TaskResult.bind fn x
+//         member _.Delay (x) = x
+//         member _.Run (fn) = fn ()
 
-    let taskResult = TaskResultBuilder()
+//     let taskResult = TaskResultBuilder()

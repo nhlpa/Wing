@@ -10,12 +10,5 @@ type LogMessage =
     | LogError of LogError
     | LogVerbose of string
 
-/// A type to perform logging.
-type IAppLogger =
-    /// Output the contents of the LogMessage
-    abstract member Write : LogMessage -> unit
-
-/// Factory for creating new IAppLogger instances.
-type IAppLoggerFactory =
-    /// Create a new instance of IAppLogger
-    abstract member CreateLogger : unit -> IAppLogger
+/// Process to write a LogMessage
+type WriteLogMessage = LogMessage -> unit

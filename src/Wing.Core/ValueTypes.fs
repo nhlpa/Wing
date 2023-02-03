@@ -45,16 +45,13 @@ type EmailAddress =
 
     override x.ToString () = match x with EmailAddress str -> str
 
-    static member Empty = EmailAddress String.Empty
-
     /// Attempt to create an EmailAddress from an untrusted source.
     static member TryCreate (field : string) (input : string) =
-        let msg field = $"{field} must be a valid email address"
-        let rule email =
-            let validEmail, _ = MailAddress.TryCreate email
-            validEmail
-        Validator.create msg rule field input
-        |> Result.map EmailAddress
+        let validEmail, mailAddress = MailAddress.TryCreate input
+        if validEmail then
+            Ok (EmailAddress mailAddress.Address)
+        else
+            Error (ValidationErrors.create field [ $"{field} must be a valid email address" ])
 
 [<Struct>]
 type E164 =

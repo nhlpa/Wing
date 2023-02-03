@@ -4,24 +4,34 @@ open System
 open System.Data
 open System.Threading.Tasks
 
-type IClientFactory<'a when 'a :> IDisposable> =
+/// Provides ability to create clients which implement IDisposable
+type IClientFactory<'a> =
     abstract member Create : unit -> 'a
 
 /// Provides ability to dispatch messages asynchronously
 type IMessageClient<'a> =
-    inherit IDisposable
     abstract member Dispatch : 'a -> Task<unit>
 
-///
+/// Provides ability to search for items and retrieve details
+/// regarding a specific item
 type ILookupClient<'a, 'b, 'c> =
-    inherit IDisposable
     abstract member Lookup : string -> Task<'b list>
     abstract member Get : 'a -> Task<'c option>
 
 //
-// Data
+// Database
 
 type IDbConnectionFactory = inherit IClientFactory<IDbConnection>
+
+/// A type to represent available interactions with a database.
+type IDbClient =
+    abstract member NewUid : unit -> Guid
+    abstract member NewConnection : unit -> IDbConnection
+
+type DbClient(dbConnectionFactory : IDbConnectionFactory) =
+    interface IDbClient with
+        member _.NewUid () = Guid.NewGuid()
+        member _.NewConnection () = dbConnectionFactory.Create ()
 
 //
 // Email
@@ -48,7 +58,9 @@ type EmailMessage =
 
 type DispatchEmail = EmailMessage -> Task<unit>
 
-type IEmailClient = inherit IMessageClient<EmailMessage>
+type IEmailClient =
+    inherit IDisposable
+    inherit IMessageClient<EmailMessage>
 
 type IEmailClientFactory = inherit IClientFactory<IEmailClient>
 
@@ -61,6 +73,8 @@ type SmsMessage =
 
 type DispatchSms = SmsMessage -> Task<unit>
 
-type ISmsClient = inherit IMessageClient<SmsMessage>
+type ISmsClient =
+    inherit IDisposable
+    inherit IMessageClient<SmsMessage>
 
 type ISmsClientFactory = inherit IClientFactory<ISmsClient>
