@@ -28,7 +28,7 @@ type PersonalName =
 
 /// A forward-seeking pager which supports optional filtering.
 ///
-/// Note: Fetches +1 row to determine if more resultsexists.
+/// Note: Fetches +1 row to determine if more results exist.
 type Pager<'TFilter> =
     { Filter : 'TFilter option
       PageNumber : int
