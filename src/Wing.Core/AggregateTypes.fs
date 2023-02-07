@@ -1,7 +1,6 @@
 namespace Wing
 
 open System
-open Validus
 
 /// An aggregate to represent a personal name
 type PersonalName =
@@ -16,15 +15,6 @@ type PersonalName =
     static member Empty =
         { FirstName = String.Empty
           LastName = String.Empty }
-
-    static member TryCreate (field : string) (input : PersonalName) =
-        validate {
-            let! firstName = Check.String.betweenLen 2 32 $"{field} First name" input.FirstName
-            and! lastName = Check.String.betweenLen 2 32 $"{field} Last name" input.LastName
-            return {
-                FirstName = firstName
-                LastName = lastName }
-        }
 
 /// A forward-seeking pager which supports optional filtering.
 ///

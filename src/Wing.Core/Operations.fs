@@ -2,7 +2,7 @@ namespace Wing
 
 open Validus
 
-type CommandError = CommandInputError of string list | CommandOperationError of string list
+type CommandError = CommandInputError of string list
 type CommandResult = Result<unit, CommandError>
 
 type QueryError = QueryInputError of string list | QueryNoResult

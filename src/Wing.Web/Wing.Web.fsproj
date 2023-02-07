@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="Falco" Version="4.*" />
-    <PackageReference Include="Validus" Version="4.*" />
   </ItemGroup>
 
   <!-- TODO Change to package reference-->
