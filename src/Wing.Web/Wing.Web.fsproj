@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="ILogger.fs" />
+    <Compile Include="Controller.fs" />
+    <Compile Include="Router.fs" />
   </ItemGroup>
 </Project>
