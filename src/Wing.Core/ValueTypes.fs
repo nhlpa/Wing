@@ -62,7 +62,7 @@ type E164 =
         let str = string x
         if str.Length = 0 then "-"
         elif str.Length < 5 then str.Substring (0, 1) + String('*', str.Length - 1)
-        else str.Substring (0, 2) + String('*', str.Length - 4) + str.Substring (str.Length - 3, 2)
+        else str.Substring (0, 2) + String('*', str.Length - 4) + str.Substring (str.Length - 2, 2)
 
     override x.ToString () = match x with E164 str -> str
 
