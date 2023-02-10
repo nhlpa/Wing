@@ -77,3 +77,30 @@ type E164 =
         let rule phone = Regex.IsMatch(phone, @"^\+[1-9]\d{3,14}$")
         Validator.create E164.Requirements rule field input
         |> Result.map E164
+
+[<Struct>]
+type AccessCode =
+    | AccessCode of string
+
+    member x.Readable =
+        let str = string x
+        String.Concat[str.Substring(0,3); "-"; str.Substring(3)]
+
+    override x.ToString () = match x with AccessCode str -> str
+
+    static member New () =
+        Guid.NewGuid().ToString("n").Substring(0,6).ToUpper()
+        |> AccessCode
+
+    static member Requirements (field : string) =
+        $"{field} must be an 6 character string containing only letters and numbers, optionally separated by a dash."
+
+    static member TryCreate (field : string) (input : string) =
+        let rule (accessCodeStr : string) =
+            if accessCodeStr.Length <> 6 then false
+            elif Regex.IsMatch(accessCodeStr, "[^A-Z0-9]") then false
+            else true
+
+        input.ToUpperInvariant().Replace("-", "")
+        |> Validator.create AccessCode.Requirements rule field
+        |> Result.map AccessCode

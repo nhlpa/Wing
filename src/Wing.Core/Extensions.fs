@@ -1,5 +1,20 @@
 namespace Wing
 
+module Result =
+    let traverse fn list =
+        let folder item acc =
+            match fn item, acc with
+            | Ok i, Ok a -> Ok (i :: a)
+            | _, Error e
+            | Error e, _ -> Error e
+
+        let seed = Ok []
+
+        List.foldBack folder list seed
+
+    let sequence list =
+        traverse id list
+
 [<AutoOpen>]
 module Extensions =
     open System
